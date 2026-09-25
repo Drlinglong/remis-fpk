@@ -10,10 +10,12 @@ import struct
 import tempfile
 import unittest
 import zlib
+from pathlib import Path as RealPath
 from pathlib import Path
 from unittest.mock import patch
 
 from remis_fpk import ArchiveError, ArchiveLimits, extract_archive, inspect_archive
+from remis_fpk import reader as reader_module
 
 try:
     import zstandard
@@ -114,8 +116,6 @@ class RawProfileTests(unittest.TestCase):
         data = pack_archive(record_bytes, b"x")
         with tempfile.TemporaryDirectory() as temporary:
             archive = self.write_archive(Path(temporary), data)
-            path_type = type(archive)
-            original_open = path_type.open
             requested_sizes = []
 
             class GrowingReader:
@@ -138,13 +138,33 @@ class RawProfileTests(unittest.TestCase):
                     # file-sharing and cache behavior while another handle appends.
                     return data + b"x" * max(0, size - len(data))
 
-            def growing_open(path, mode="r", *args, **kwargs):
-                stream = original_open(path, mode, *args, **kwargs)
-                if Path(path) == archive and mode == "rb":
-                    return GrowingReader(stream)
-                return stream
+            class GrowingPath:
+                def __init__(self, path):
+                    self.path = RealPath(path)
 
-            with patch.object(path_type, "open", growing_open):
+                def __fspath__(self):
+                    return os.fspath(self.path)
+
+                def is_symlink(self):
+                    return self.path.is_symlink()
+
+                def lstat(self):
+                    return self.path.lstat()
+
+                def resolve(self, *, strict=False):
+                    self.path = self.path.resolve(strict=strict)
+                    return self
+
+                def is_file(self):
+                    return self.path.is_file()
+
+                def stat(self):
+                    return self.path.stat()
+
+                def open(self, mode="r", *args, **kwargs):
+                    return GrowingReader(self.path.open(mode, *args, **kwargs))
+
+            with patch.object(reader_module, "Path", GrowingPath):
                 with self.assertRaises(ArchiveError):
                     inspect_archive(archive, limits=ArchiveLimits(archive_bytes=128))
             self.assertEqual(requested_sizes, [129])
