@@ -132,9 +132,10 @@ class RawProfileTests(unittest.TestCase):
 
                 def read(self, size=-1):
                     requested_sizes.append(size)
-                    with open(archive, "ab") as growth:
-                        growth.write(b"x" * 1024)
-                    return self.stream.read(size)
+                    data = self.stream.read(size)
+                    # Simulate growth at read time without relying on OS-specific
+                    # file-sharing and cache behavior while another handle appends.
+                    return data + b"x" * max(0, size - len(data))
 
             def growing_open(path, mode="r", *args, **kwargs):
                 stream = original_open(path, mode, *args, **kwargs)
