@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    name: ${{ matrix.os }} / Python ${{ matrix.python-version }} / ${{ matrix.distribution }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+        python-version: ["3.10", "3.13"]
+        distribution: [wheel, sdist]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Build wheel and source distribution
+        run: |
+          python -m pip install --upgrade pip build pytest
+          python -m build
+      - name: Install built distribution
+        env:
+          PACKAGE_KIND: ${{ matrix.distribution }}
+        run: python -c "import glob, os, subprocess, sys; pattern = 'dist/*.whl' if os.environ['PACKAGE_KIND'] == 'wheel' else 'dist/*.tar.gz'; artifacts = glob.glob(pattern); assert artifacts, f'No artifact matched {pattern}'; subprocess.check_call([sys.executable, '-m', 'pip', 'install', '--force-reinstall', artifacts[0]])"
+      - name: Test installed CLI and synthetic fixtures
+        run: |
+          python -c "import os, subprocess, sys, tempfile; os.chdir(tempfile.gettempdir()); subprocess.check_call(['remis-fpk', '--help']); subprocess.check_call([sys.executable, '-m', 'pytest', '-q', os.path.join(os.environ['GITHUB_WORKSPACE'], 'tests')])"

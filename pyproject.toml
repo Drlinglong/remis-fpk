@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=77", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "remis-fpk"
+version = "0.1.0"
+description = "Bounded reader and extractor for Surviving Mars FLPK archives"
+readme = "README.md"
+license = "AGPL-3.0-only"
+license-files = ["LICENSE"]
+requires-python = ">=3.10"
+dependencies = ["zstandard==0.23.0"]
+
+[project.optional-dependencies]
+test = ["pytest>=8,<9", "build>=1"]
+
+[project.scripts]
+remis-fpk = "remis_fpk.__main__:main"
+
+[project.urls]
+Repository = "https://github.com/Drlinglong/remis-fpk"
+Issues = "https://github.com/Drlinglong/remis-fpk/issues"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+remis_fpk = ["FORMAT.md", "LICENSE"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
