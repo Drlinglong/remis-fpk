@@ -114,7 +114,8 @@ class RawProfileTests(unittest.TestCase):
         data = pack_archive(record_bytes, b"x")
         with tempfile.TemporaryDirectory() as temporary:
             archive = self.write_archive(Path(temporary), data)
-            original_open = Path.open
+            path_type = type(archive)
+            original_open = path_type.open
             requested_sizes = []
 
             class GrowingReader:
@@ -143,7 +144,7 @@ class RawProfileTests(unittest.TestCase):
                     return GrowingReader(stream)
                 return stream
 
-            with patch.object(Path, "open", growing_open):
+            with patch.object(path_type, "open", growing_open):
                 with self.assertRaises(ArchiveError):
                     inspect_archive(archive, limits=ArchiveLimits(archive_bytes=128))
             self.assertEqual(requested_sizes, [129])
